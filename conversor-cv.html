@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor CV Docentes — EDL UDLA</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --azul: #185FA5; --azul-dark: #0C447C; --azul-light: #e8f0fb;
+      --verde: #2e7d32; --verde-light: #e8f5e9;
+      --rojo: #c62828; --rojo-light: #ffebee;
+      --gris: #f0f4f8; --borde: #e2e8f4;
+      --texto: #1a1a1a; --texto2: #555;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gris); color: var(--texto); min-height: 100vh; }
+
+    /* TOP BAR */
+    .topbar { background: var(--azul); padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 100; }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; }
+    .topbar-logo { width: 34px; height: 34px; background: white; border-radius: 8px; display: grid; place-items: center; font-weight: 900; color: var(--azul); font-size: 13px; letter-spacing: -0.5px; }
+    .topbar-title { color: white; font-size: 15px; font-weight: 700; }
+    .topbar-sub { color: rgba(255,255,255,0.65); font-size: 12px; }
+    .topbar-badge { background: rgba(255,255,255,0.15); color: white; font-size: 11px; padding: 4px 10px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.25); }
+
+    /* LAYOUT */
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+    /* STEPS */
+    .steps { display: flex; align-items: center; gap: 0; margin-bottom: 2rem; }
+    .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #aaa; padding: 10px 20px; background: white; border: 1px solid var(--borde); flex: 1; justify-content: center; }
+    .step:first-child { border-radius: 10px 0 0 10px; }
+    .step:last-child { border-radius: 0 10px 10px 0; }
+    .step-num { width: 22px; height: 22px; border-radius: 50%; background: #ddd; color: white; font-size: 11px; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; }
+    .step.active { color: var(--azul); border-color: var(--azul); background: var(--azul-light); font-weight: 600; }
+    .step.active .step-num { background: var(--azul); }
+    .step.done { color: var(--verde); border-color: #a5d6a7; background: var(--verde-light); }
+    .step.done .step-num { background: var(--verde); }
+
+    /* CARDS */
+    .card { background: white; border-radius: 14px; padding: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 1.5rem; }
+    .card-title { font-size: 17px; font-weight: 700; color: var(--azul); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .card-desc { font-size: 13px; color: var(--texto2); margin-bottom: 1.5rem; line-height: 1.5; }
+
+    /* UPLOAD */
+    .drop-zone { border: 2.5px dashed #b8cde8; border-radius: 12px; padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all 0.2s; background: #f7f9fc; }
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--azul); background: var(--azul-light); }
+    .drop-icon { width: 56px; height: 56px; background: var(--azul-light); border-radius: 14px; display: grid; place-items: center; margin: 0 auto 1rem; }
+    .drop-icon svg { color: var(--azul); }
+    .drop-zone h3 { font-size: 16px; font-weight: 700; color: var(--azul); margin-bottom: 6px; }
+    .drop-zone p { font-size: 13px; color: #888; margin-bottom: 4px; }
+    .drop-zone small { font-size: 12px; color: #bbb; }
+    .btn-file { display: inline-block; margin-top: 1.2rem; padding: 10px 24px; background: var(--azul); color: white; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+    .btn-file:hover { background: var(--azul-dark); }
+
+    /* TABLE PREVIEW */
+    .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
+    .preview-meta { font-size: 13px; color: var(--texto2); }
+    .preview-meta strong { color: var(--azul); }
+    .tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--borde); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: #f5f7fb; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; color: #444; white-space: nowrap; border-bottom: 1px solid var(--borde); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f5f7fa; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .tag-prog { display: inline-block; background: var(--azul-light); color: var(--azul); border-radius: 100px; padding: 2px 10px; font-size: 11px; font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status-cell { font-size: 12px; }
+
+    /* BOTONES */
+    .btn-primary { padding: 12px 28px; background: var(--azul); color: white; border: none; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; transition: all 0.15s; }
+    .btn-primary:hover { background: var(--azul-dark); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-ghost { padding: 10px 22px; border: 1.5px solid var(--borde); border-radius: 9px; background: white; color: var(--texto2); font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { background: var(--gris); }
+
+    /* CONFIG */
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+    @media(max-width:600px){ .config-grid { grid-template-columns: 1fr; } }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--borde); border-radius: 8px; font-size: 13px; font-family: inherit; background: #f8fafc; color: var(--texto); }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); background: white; }
+    .field textarea { min-height: 80px; resize: vertical; }
+    .field .hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+
+    /* PROGRESS */
+    .prog-wrap { margin-bottom: 1rem; }
+    .prog-bar-bg { background: #e8edf5; border-radius: 100px; height: 10px; overflow: hidden; margin-bottom: 6px; }
+    .prog-bar-fill { height: 100%; background: linear-gradient(90deg, var(--azul), #42a5f5); border-radius: 100px; transition: width 0.4s ease; width: 0%; }
+    .prog-labels { display: flex; justify-content: space-between; font-size: 12px; color: #888; }
+    .log-box { background: #f7f9fc; border: 1px solid var(--borde); border-radius: 8px; padding: 10px 14px; max-height: 220px; overflow-y: auto; margin-top: 1rem; }
+    .log-item { font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f0f0f0; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+    .log-item:last-child { border-bottom: none; }
+    .log-item.ok { color: var(--verde); }
+    .log-item.err { color: var(--rojo); }
+    .log-item.info { color: var(--azul); }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; margin-top: 4px; }
+
+    /* DONE */
+    .done-icon { width: 72px; height: 72px; background: var(--verde-light); border-radius: 50%; display: grid; place-items: center; margin: 0 auto 1.25rem; font-size: 32px; }
+    .done-title { font-size: 22px; font-weight: 700; color: var(--verde); text-align: center; margin-bottom: 8px; }
+    .done-desc { font-size: 14px; color: var(--texto2); text-align: center; margin-bottom: 1.75rem; }
+    .done-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    /* ALERT */
+    .alert { padding: 12px 16px; border-radius: 9px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 1rem; }
+    .alert.info { background: var(--azul-light); color: var(--azul); border: 1px solid #b8cde8; }
+    .alert.warn { background: #fff8e1; color: #795548; border: 1px solid #ffe082; }
+    .alert.err { background: var(--rojo-light); color: var(--rojo); border: 1px solid #ef9a9a; }
+    .spinner { width: 16px; height: 16px; border: 2.5px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* HIDDEN */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">EDL</div>
+    <div>
+      <div class="topbar-title">Conversor de CV Docentes</div>
+      <div class="topbar-sub">Dirección de Educación en Línea — UDLA</div>
+    </div>
+  </div>
+  <div class="topbar-badge">Solo equipo administrativo</div>
+</div>
+
+<div class="wrap">
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step active" id="step-1"><div class="step-num">1</div> Subir Excel</div>
+    <div class="step" id="step-2"><div class="step-num">2</div> Configurar</div>
+    <div class="step" id="step-3"><div class="step-num">3</div> Generar con IA</div>
+    <div class="step" id="step-4"><div class="step-num">4</div> Descargar ZIP</div>
+  </div>
+
+  <!-- PASO 1: SUBIR EXCEL -->
+  <div id="pane-1">
+    <div class="card">
+      <div class="card-title">📂 Suba el Excel exportado de Microsoft Forms</div>
+      <div class="card-desc">Desde Microsoft Forms vaya a <strong>Respuestas → Abrir en Excel</strong>, guarde el archivo y súbalo aquí. La herramienta leerá cada fila y generará un CV en Word por docente.</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()">
+        <div class="drop-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </div>
+        <h3>Arrastre el archivo aquí</h3>
+        <p>o haga clic para seleccionarlo</p>
+        <small>Formato .xlsx exportado de Microsoft Forms</small>
+        <br>
+        <button class="btn-file" onclick="event.stopPropagation()">Seleccionar archivo</button>
+      </div>
+      <input type="file" id="file-in" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(this)">
+    </div>
+  </div>
+
+  <!-- PASO 2: CONFIGURAR -->
+  <div id="pane-2" class="hidden">
+    <div class="card">
+      <div class="card-title">👁 Vista previa — <span id="total-label"></span></div>
+      <div class="card-desc">Verifique que los datos se leyeron correctamente antes de generar los CV.</div>
+      <div class="preview-header">
+        <div class="preview-meta">Mostrando datos clave · <strong id="row-count"></strong> docente(s)</div>
+        <button class="btn-ghost" onclick="goStep(1)">← Cambiar archivo</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr id="tbl-head"></tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Configuración de generación</div>
+      <div class="card-desc">Personalice cómo la IA redactará y formateará cada CV.</div>
+      <div class="config-grid">
+        <div class="field">
+          <label>Institución</label>
+          <input type="text" id="cfg-inst" value="Universidad de las Américas — UDLA">
+          <div class="hint">Aparecerá en el pie de cada CV</div>
+        </div>
+        <div class="field">
+          <label>Idioma del CV</label>
+          <select id="cfg-lang">
+            <option value="es">Español</option>
+            <option value="en">Inglés</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Instrucción adicional para la IA (opcional)</label>
+        <textarea id="cfg-prompt" placeholder="Ej: Usa un tono formal académico. Resalta la experiencia en educación virtual. No incluyas información personal como fecha de nacimiento."></textarea>
+        <div class="hint">La IA mejorará el texto de perfil profesional y descripciones según esta instrucción.</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:0.5rem;">
+        <button class="btn-primary" onclick="goStep(3)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Generar CV con IA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 3: GENERANDO -->
+  <div id="pane-3" class="hidden">
+    <div class="card">
+      <div class="card-title">
+        <div class="spinner" style="color:var(--azul)"></div>
+        Generando CV con IA...
+      </div>
+      <div class="card-desc" id="gen-desc">Procesando cada docente con Claude. Esto puede tomar unos minutos según la cantidad de registros.</div>
+      <div class="prog-wrap">
+        <div class="prog-bar-bg"><div class="prog-bar-fill" id="prog-fill"></div></div>
+        <div class="prog-labels"><span id="prog-label">Iniciando...</span><span id="prog-count"></span></div>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+  </div>
+
+  <!-- PASO 4: LISTO -->
+  <div id="pane-4" class="hidden">
+    <div class="card" style="text-align:center;padding:3rem 2rem;">
+      <div class="done-icon">✅</div>
+      <div class="done-title" id="done-title">CV generados exitosamente</div>
+      <div class="done-desc" id="done-desc"></div>
+      <div class="done-actions">
+        <button class="btn-ghost" onclick="reiniciar()">Procesar otro Excel</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────
+let filas = [];
+let cols = [];
+
+// ── Script loader ────────────────────────────────────────────
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.body.appendChild(s);
+  });
+}
+
+// ── Step navigation ──────────────────────────────────────────
+function goStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`pane-${i}`).classList.toggle('hidden', i !== n);
+    const st = document.getElementById(`step-${i}`);
+    st.classList.remove('active','done');
+    if (i === n) st.classList.add('active');
+    else if (i < n) st.classList.add('done');
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── Drag & drop ──────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) procesarArchivo(e.dataTransfer.files[0]); });
+
+function onFileSelect(input) { if(input.files[0]) procesarArchivo(input.files[0]); }
+
+// ── Parse Excel ──────────────────────────────────────────────
+function procesarArchivo(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type: 'binary' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!data.length) { alert('El archivo no tiene datos.'); return; }
+    filas = data;
+    cols = Object.keys(data[0]);
+    mostrarPreview();
+    goStep(2);
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── Column finder ────────────────────────────────────────────
+function gc(row, ...keywords) {
+  for (const kw of keywords) {
+    const key = cols.find(c => c.toLowerCase().includes(kw.toLowerCase()));
+    if (key && row[key] !== undefined) return (row[key]||'').toString().trim();
+  }
+  return '';
+}
+
+// ── Preview table ────────────────────────────────────────────
+function mostrarPreview() {
+  document.getElementById('total-label').textContent = `${filas.length} registro(s)`;
+  document.getElementById('row-count').textContent = filas.length;
+  const head = document.getElementById('tbl-head');
+  head.innerHTML = ['Programa(s)','Nombres','Apellidos','Correo','Ciudad','Estado'].map(h=>`<th>${h}</th>`).join('');
+  const body = document.getElementById('tbl-body');
+  body.innerHTML = filas.map((row,i) => `<tr>
+    <td><span class="tag-prog">${gc(row,'Programa','maestr')||'—'}</span></td>
+    <td>${gc(row,'Nombres','nombre')||'—'}</td>
+    <td>${gc(row,'Apellidos','apellido')||'—'}</td>
+    <td>${gc(row,'Correo','email','correo')||'—'}</td>
+    <td>${gc(row,'Ciudad','ciudad')||'—'}</td>
+    <td class="status-cell" id="st-${i}">⏳ Pendiente</td>
+  </tr>`).join('');
+}
+
+// ── Log helper ───────────────────────────────────────────────
+function addLog(msg, type='info') {
+  const box = document.getElementById('log-box');
+  const el = document.createElement('div');
+  el.className = `log-item ${type}`;
+  el.innerHTML = `<div class="log-dot"></div><span>${msg}</span>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setProgress(cur, total, label) {
+  const pct = total > 0 ? Math.round((cur/total)*100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = label;
+  document.getElementById('prog-count').textContent = `${cur} / ${total}`;
+}
+
+// ── MAIN GENERATOR ───────────────────────────────────────────
+async function goStep3Wrapper() { /* called by button */ }
+
+document.querySelector('.btn-primary').addEventListener('click', async () => {
+  goStep(3);
+  document.getElementById('log-box').innerHTML = '';
+
+  addLog('Cargando librerías...', 'info');
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js');
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+  addLog('Librerías listas ✓', 'ok');
+
+  const zip = new JSZip();
+  const total = filas.length;
+  const inst = document.getElementById('cfg-inst').value.trim();
+  const lang = document.getElementById('cfg-lang').value;
+  const extraPrompt = document.getElementById('cfg-prompt').value.trim();
+  let ok = 0, err = 0;
+
+  for (let i = 0; i < total; i++) {
+    const row = filas[i];
+    const nom = gc(row,'Nombres','nombre') || `Docente_${i+1}`;
+    const ape = gc(row,'Apellidos','apellido') || '';
+    const nombre = `${nom} ${ape}`.trim();
+    setProgress(i, total, `Procesando con IA: ${nombre}`);
+    addLog(`Consultando IA para: ${nombre}...`, 'info');
+    document.getElementById(`st-${i}`).textContent = '🤖 Procesando...';
+
+    try {
+      const mejorado = await mejorarConIA(row, lang, extraPrompt);
+      const buffer = await generarDocx(row, mejorado, inst, lang);
+      const fn = `CV_${nombre.replace(/\s+/g,'_').replace(/[^\w\-áéíóúÁÉÍÓÚñÑ]/g,'')}.docx`;
+      zip.file(fn, buffer);
+      document.getElementById(`st-${i}`).textContent = '✅ Listo';
+      addLog(`✓ CV generado: ${nombre}`, 'ok');
+      ok++;
+    } catch(e) {
+      document.getElementById(`st-${i}`).textContent = '❌ Error';
+      addLog(`✗ Error en ${nombre}: ${e.message}`, 'err');
+      err++;
+    }
+
+    // Small delay to avoid API rate limits
+    if (i < total - 1) await new Promise(r => setTimeout(r, 800));
+  }
+
+  setProgress(total, total, 'Empaquetando archivos...');
+  addLog('Generando archivo ZIP...', 'info');
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `CV_Docentes_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  addLog(`Proceso completado: ${ok} CV generados${err>0?`, ${err} con errores`:''}`, 'ok');
+
+  setTimeout(() => {
+    goStep(4);
+    document.getElementById('done-title').textContent = `${ok} CV generado${ok!==1?'s':''} exitosamente`;
+    document.getElementById('done-desc').textContent = `Se descargó un ZIP con ${ok} hoja${ok!==1?'s':''} de vida en formato Word con contenido mejorado por IA.${err>0?` ${err} registro(s) presentaron errores.`:''}`;
+  }, 1200);
+});
+
+// ── IA IMPROVEMENT ───────────────────────────────────────────
+async function mejorarConIA(row, lang, extraPrompt) {
+  const perfil = gc(row,'Perfil','perfil');
+  const laboral = extraerLaboral(row);
+  const docencia = extraerDocencia(row);
+
+  const langInstr = lang === 'en' ? 'Write entirely in English.' : 'Escribe en español formal académico.';
+  const prompt = `Eres un experto en redacción de hojas de vida académicas para docentes universitarios. 
+${langInstr}
+${extraPrompt ? `Instrucción adicional: ${extraPrompt}` : ''}
+
+Dado el siguiente perfil de un docente, mejora y redacta profesionalmente los textos indicados.
+Mantén la información factual exacta, solo mejora la redacción y el impacto comunicativo.
+Responde SOLO en JSON sin backticks ni texto adicional.
+
+DATOS DEL DOCENTE:
+Nombre: ${gc(row,'Nombres','nombre')} ${gc(row,'Apellidos','apellido')}
+Programa(s): ${gc(row,'Programa','maestr')}
+Perfil original: ${perfil || '(no proporcionado)'}
+Experiencia laboral resumida: ${laboral}
+Experiencia docente resumida: ${docencia}
+
+Devuelve este JSON exacto:
+{
+  "perfil_mejorado": "párrafo de 3-4 oraciones que destaque el perfil académico y profesional del docente",
+  "resumen_laboral": "frase de impacto sobre su trayectoria laboral (máx 2 oraciones)",
+  "resumen_docente": "frase de impacto sobre su experiencia docente (máx 2 oraciones)"
+}`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await response.json();
+  const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+  try {
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch {
+    return { perfil_mejorado: perfil, resumen_laboral: '', resumen_docente: '' };
+  }
+}
+
+function extraerLaboral(row) {
+  const items = [];
+  for (let n = 1; n <= 5; n++) {
+    const cargo = gc(row, `Laboral ${n}`, `cargo${n}`);
+    const empresa = gc(row, `Empresa ${n}`, `empresa${n}`);
+    if (cargo || empresa) items.push(`${cargo} en ${empresa}`);
+  }
+  return items.slice(0,3).join('; ') || gc(row,'laboral','Laboral');
+}
+
+function extraerDocencia(row) {
+  const items = [];
+  for (let n = 1; n <= 5; n++) {
+    const inst = gc(row, `Docencia ${n}`, `institución${n}`);
+    const area = gc(row, `Área ${n}`, `área${n}`, `asignatura${n}`);
+    if (inst || area) items.push(`${area} en ${inst}`);
+  }
+  return items.slice(0,3).join('; ') || gc(row,'docente','Docencia');
+}
+
+// ── DOCX GENERATOR ───────────────────────────────────────────
+async function generarDocx(row, ia, inst, lang) {
+  const { Document, Packer, Paragraph, TextRun, ExternalHyperlink, AlignmentType, BorderStyle } = docx;
+
+  const nombres = gc(row,'Nombres','nombre');
+  const apellidos = gc(row,'Apellidos','apellido');
+  const nombre = `${nombres} ${apellidos}`.trim() || 'Docente';
+  const email = gc(row,'Correo','email','correo');
+  const tel = gc(row,'Teléfono','telefono','celular');
+  const ciudad = gc(row,'Ciudad','ciudad');
+  const linkedin = gc(row,'LinkedIn','linkedin');
+  const programas = gc(row,'Programa','maestr');
+  const perfil = ia?.perfil_mejorado || gc(row,'Perfil','perfil');
+
+  function h1(t) {
+    return new Paragraph({ children:[new TextRun({text:t,bold:true,size:34,color:'185FA5',font:'Arial'})], spacing:{before:440,after:90}, border:{bottom:{style:BorderStyle.SINGLE,size:7,color:'185FA5',space:4}} });
+  }
+  function h2(t) {
+    return new Paragraph({ children:[new TextRun({text:t,bold:true,size:24,color:'2C2C2C',font:'Arial'})], spacing:{before:200,after:65} });
+  }
+  function fld(label, val) {
+    if(!val) return null;
+    return new Paragraph({ children:[new TextRun({text:label+': ',bold:true,size:20,font:'Arial',color:'5F5E5A'}),new TextRun({text:val,size:20,font:'Arial'})], spacing:{after:55} });
+  }
+  function lfld(label, url) {
+    if(!url) return null;
+    return new Paragraph({ children:[new TextRun({text:label+': ',bold:true,size:20,font:'Arial',color:'5F5E5A'}),new ExternalHyperlink({link:url,children:[new TextRun({text:url,size:20,font:'Arial',color:'185FA5',underline:{}})]})], spacing:{after:55} });
+  }
+  function div() { return new Paragraph({ border:{bottom:{style:BorderStyle.SINGLE,size:2,color:'DDDDDD',space:1}}, spacing:{after:140} }); }
+  function sp() { return new Paragraph({ spacing:{after:85} }); }
+  function push(arr, p) { if(p) arr.push(p); }
+
+  const ch = [];
+
+  // ENCABEZADO
+  ch.push(new Paragraph({ children:[new TextRun({text:nombre,bold:true,size:52,font:'Arial',color:'185FA5'})], alignment:AlignmentType.CENTER, spacing:{after:50} }));
+  const contacto = [email,tel,ciudad].filter(Boolean).join('  |  ');
+  if(contacto) ch.push(new Paragraph({ children:[new TextRun({text:contacto,size:19,font:'Arial',color:'888780'})], alignment:AlignmentType.CENTER, spacing:{after:35} }));
+  if(linkedin) ch.push(new Paragraph({ children:[new ExternalHyperlink({link:linkedin,children:[new TextRun({text:linkedin,size:17,font:'Arial',color:'0A66C2',underline:{}})]})], alignment:AlignmentType.CENTER, spacing:{after:50} }));
+  if(programas) {
+    programas.split(',').map(p=>p.trim()).filter(Boolean).forEach(prog => {
+      ch.push(new Paragraph({ children:[new TextRun({text:prog,bold:true,size:21,font:'Arial',color:'185FA5'})], alignment:AlignmentType.CENTER, spacing:{after:22} }));
+    });
+  }
+  ch.push(div());
+
+  // INFO PERSONAL
+  ch.push(h1(lang==='en' ? 'Personal Information' : 'Información personal'));
+  push(ch, fld(lang==='en'?'Document type':'Tipo de documento', gc(row,'Tipo','tipo_doc')));
+  push(ch, fld(lang==='en'?'Document number':'Número de documento', gc(row,'Número','num_doc')));
+  push(ch, fld(lang==='en'?'Date of birth':'Fecha de nacimiento', gc(row,'nacimiento','fecha_nac')));
+  push(ch, fld(lang==='en'?'Nationality':'Nacionalidad', gc(row,'Nacionalidad','nacionalidad')));
+  push(ch, fld(lang==='en'?'City':'Ciudad', ciudad));
+  push(ch, fld(lang==='en'?'Program(s)':'Programa(s)', programas));
+  push(ch, lfld('LinkedIn', linkedin));
+
+  if(perfil) {
+    ch.push(new Paragraph({ children:[new TextRun({text:lang==='en'?'Professional profile':'Perfil profesional',bold:true,size:20,font:'Arial',color:'5F5E5A'})], spacing:{before:100,after:35} }));
+    ch.push(new Paragraph({ children:[new TextRun({text:perfil,size:20,font:'Arial',italics:true})], spacing:{after:90} }));
+  }
+
+  // FORMACIÓN
+  const titulos = [];
+  for(let n=1;n<=5;n++) {
+    const nv=gc(row,`Título ${n} — Nivel`,`Título ${n} - Nivel`,`nivel${n}`);
+    const ti=gc(row,`Título ${n} — Título`,`Título ${n} - Título`,`titulo${n}`);
+    const ins=gc(row,`Título ${n} — Institución`,`Título ${n} - Institución`,`inst${n}`);
+    const pa=gc(row,`Título ${n} — País`,`Título ${n} - País`);
+    const fi=gc(row,`Título ${n} — Fecha de inicio`,`Título ${n} - Fecha de inicio`);
+    const ff=gc(row,`Título ${n} — Fecha de grado`,`Título ${n} - Fecha de grado`);
+    if(nv||ti||ins) titulos.push({nv,ti,ins,pa,fi,ff});
+  }
+  if(titulos.length) {
+    ch.push(h1(lang==='en'?'Academic Background':'Formación académica'));
+    titulos.forEach(t => {
+      ch.push(h2(`${t.nv||''} — ${t.ti||''}`));
+      push(ch,fld(lang==='en'?'Institution':'Institución',t.ins));
+      push(ch,fld(lang==='en'?'Country':'País',t.pa));
+      const per=[t.fi,t.ff].filter(Boolean).join(' – ');
+      push(ch,fld(lang==='en'?'Period':'Período',per));
+      ch.push(sp());
+    });
+  }
+
+  // EXPERIENCIA LABORAL
+  const laborales = [];
+  for(let n=1;n<=5;n++) {
+    const ca=gc(row,`Laboral ${n} — Cargo`,`Laboral ${n} - Cargo`,`cargo${n}`);
+    const em=gc(row,`Laboral ${n} — Empresa`,`Laboral ${n} - Empresa`,`empresa${n}`);
+    const se=gc(row,`Laboral ${n} — Sector`,`Laboral ${n} - Sector`);
+    const fi=gc(row,`Laboral ${n} — Fecha de inicio`,`Laboral ${n} - Fecha de inicio`);
+    const ff=gc(row,`Laboral ${n} — Fecha de cierre`,`Laboral ${n} - Fecha de cierre`);
+    const de=gc(row,`Laboral ${n} — Descripción`,`Laboral ${n} - Descripción`);
+    if(ca||em) laborales.push({ca,em,se,fi,ff,de});
+  }
+  if(laborales.length) {
+    ch.push(h1(lang==='en'?'Work Experience':'Experiencia laboral'));
+    if(ia?.resumen_laboral) ch.push(new Paragraph({ children:[new TextRun({text:ia.resumen_laboral,size:20,font:'Arial',italics:true,color:'444444'})], spacing:{after:120} }));
+    laborales.forEach(l => {
+      ch.push(h2(`${l.ca||''} — ${l.em||''}`));
+      push(ch,fld(lang==='en'?'Sector':'Sector',l.se));
+      const per=[l.fi,l.ff].filter(Boolean).join(' – ');
+      push(ch,fld(lang==='en'?'Period':'Período',per));
+      if(l.de) ch.push(new Paragraph({ children:[new TextRun({text:l.de,size:20,font:'Arial'})], spacing:{before:55,after:75} }));
+      ch.push(sp());
+    });
+  }
+
+  // EXPERIENCIA DOCENTE
+  const docentes = [];
+  for(let n=1;n<=5;n++) {
+    const ins=gc(row,`Docencia ${n} — Institución`,`Docencia ${n} - Institución`);
+    const ar=gc(row,`Docencia ${n} — Área`,`Docencia ${n} - Área`,`Área ${n}`);
+    const mo=gc(row,`Docencia ${n} — Modalidad`,`Docencia ${n} - Modalidad`);
+    const nv=gc(row,`Docencia ${n} — Nivel`,`Docencia ${n} - Nivel`);
+    const fi=gc(row,`Docencia ${n} — Fecha de inicio`,`Docencia ${n} - Fecha de inicio`);
+    const ff=gc(row,`Docencia ${n} — Fecha de cierre`,`Docencia ${n} - Fecha de cierre`);
+    if(ins||ar) docentes.push({ins,ar,mo,nv,fi,ff});
+  }
+  if(docentes.length) {
+    ch.push(h1(lang==='en'?'Teaching Experience':'Experiencia docente'));
+    if(ia?.resumen_docente) ch.push(new Paragraph({ children:[new TextRun({text:ia.resumen_docente,size:20,font:'Arial',italics:true,color:'444444'})], spacing:{after:120} }));
+    docentes.forEach(d => {
+      ch.push(h2(`${d.ar||''} — ${d.ins||''}`));
+      push(ch,fld(lang==='en'?'Modality':'Modalidad',d.mo));
+      push(ch,fld(lang==='en'?'Level':'Nivel educativo',d.nv));
+      const per=[d.fi,d.ff].filter(Boolean).join(' – ');
+      push(ch,fld(lang==='en'?'Period':'Período',per));
+      ch.push(sp());
+    });
+  }
+
+  // CURSOS
+  const cursos = [];
+  for(let n=1;n<=5;n++) {
+    const no=gc(row,`Curso ${n} — Nombre`,`Curso ${n} - Nombre`,`curso${n}`);
+    const ins=gc(row,`Curso ${n} — Institución`,`Curso ${n} - Institución`);
+    const ho=gc(row,`Curso ${n} — Intensidad`,`Curso ${n} - Intensidad`,`Curso ${n} — Horas`);
+    const fi=gc(row,`Curso ${n} — Fecha de inicio`,`Curso ${n} - Fecha de inicio`);
+    const ff=gc(row,`Curso ${n} — Fecha de cierre`,`Curso ${n} - Fecha de cierre`);
+    if(no) cursos.push({no,ins,ho,fi,ff});
+  }
+  if(cursos.length) {
+    ch.push(h1(lang==='en'?'Courses Taught':'Cursos dictados'));
+    cursos.forEach(c => {
+      ch.push(h2(c.no));
+      push(ch,fld(lang==='en'?'Institution':'Institución / Plataforma',c.ins));
+      push(ch,fld(lang==='en'?'Hours':'Intensidad horaria',c.ho?c.ho+' horas':''));
+      const per=[c.fi,c.ff].filter(Boolean).join(' – ');
+      push(ch,fld(lang==='en'?'Period':'Período',per));
+      ch.push(sp());
+    });
+  }
+
+  // PREMIOS
+  const premios = [];
+  for(let n=1;n<=3;n++) {
+    const no=gc(row,`Premio ${n} — Nombre`,`Premio ${n} - Nombre`);
+    const ot=gc(row,`Premio ${n} — Otorgado`,`Premio ${n} - Otorgado`);
+    const an=gc(row,`Premio ${n} — Año`,`Premio ${n} - Año`);
+    const ti=gc(row,`Premio ${n} — Tipo`,`Premio ${n} - Tipo`);
+    const de=gc(row,`Premio ${n} — Descripción`,`Premio ${n} - Descripción`);
+    if(no) premios.push({no,ot,an,ti,de});
+  }
+  if(premios.length) {
+    ch.push(h1(lang==='en'?'Awards & Recognition':'Premios y reconocimientos'));
+    premios.forEach(p => {
+      ch.push(h2(p.no));
+      push(ch,fld(lang==='en'?'Awarded by':'Otorgado por',p.ot));
+      push(ch,fld(lang==='en'?'Year':'Año',p.an));
+      push(ch,fld('Tipo',p.ti));
+      push(ch,fld(lang==='en'?'Description':'Descripción',p.de));
+      ch.push(sp());
+    });
+  }
+
+  // PUBLICACIONES
+  const pubs = [];
+  for(let n=1;n<=3;n++) {
+    const ti=gc(row,`Publicación ${n} — Título`,`Publicación ${n} - Título`);
+    const tp=gc(row,`Publicación ${n} — Tipo`,`Publicación ${n} - Tipo`);
+    const an=gc(row,`Publicación ${n} — Año`,`Publicación ${n} - Año`);
+    const re=gc(row,`Publicación ${n} — Revista`,`Publicación ${n} - Revista`);
+    const do_=gc(row,`Publicación ${n} — DOI`,`Publicación ${n} - DOI`);
+    if(ti) pubs.push({ti,tp,an,re,do_});
+  }
+  if(pubs.length) {
+    ch.push(h1(lang==='en'?'Publications':'Publicaciones e investigaciones'));
+    pubs.forEach(p => {
+      ch.push(h2(p.ti));
+      push(ch,fld('Tipo',p.tp));
+      push(ch,fld(lang==='en'?'Year':'Año',p.an));
+      push(ch,fld(lang==='en'?'Published in':'Publicado en',p.re));
+      push(ch,fld('DOI / URL',p.do_));
+      ch.push(sp());
+    });
+  }
+
+  // PIE
+  ch.push(div());
+  const hoy = new Date().toLocaleDateString('es-EC',{year:'numeric',month:'long',day:'numeric'});
+  ch.push(new Paragraph({ children:[new TextRun({text:`Hoja de vida generada el ${hoy} — ${inst}`,size:15,font:'Arial',color:'AAAAAA',italics:true})], alignment:AlignmentType.RIGHT, spacing:{before:110} }));
+
+  const document_obj = new Document({
+    sections:[{ properties:{ page:{ size:{width:11906,height:16838}, margin:{top:1440,right:1440,bottom:1440,left:1440} } }, children:ch }]
+  });
+  return await Packer.toBuffer(document_obj);
+}
+
+// ── Reset ────────────────────────────────────────────────────
+function reiniciar() {
+  filas=[]; cols=[];
+  document.getElementById('file-in').value='';
+  document.getElementById('log-box').innerHTML='';
+  document.getElementById('prog-fill').style.width='0%';
+  goStep(1);
+}
+</script>
+</body>
+</html>
